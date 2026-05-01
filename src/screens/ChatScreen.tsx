@@ -158,7 +158,6 @@ export function ChatScreen() {
           style={styles.input}
           value={question}
           onChangeText={setQuestion}
-          editable={!isSending}
           textAlign="right"
         />
         <Pressable
