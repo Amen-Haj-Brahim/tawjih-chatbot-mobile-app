@@ -4,6 +4,7 @@
     "slug": "tawjih-chatbot-mobile-app",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./logo.png",
     "userInterfaceStyle": "light",
     "splash": {
       "backgroundColor": "#F8FAFC"
@@ -16,6 +17,10 @@
     },
     "android": {
       "package": "com.tawjih.chatbot",
+      "adaptiveIcon": {
+        "foregroundImage": "./logo.png",
+        "backgroundColor": "#F8FAFC"
+      },
       "usesCleartextTraffic": true
     },
     "web": {

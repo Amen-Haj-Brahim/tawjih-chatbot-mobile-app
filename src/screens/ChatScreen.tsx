@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -104,13 +105,16 @@ export function ChatScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
-        <View>
+        <View style={styles.headerText}>
           <Text style={styles.title}>Tawjih Chatbot</Text>
           <Text style={[styles.status, isOnline === false && styles.statusError]}>
             {statusText}
           </Text>
         </View>
-        <View style={[styles.statusDot, isOnline ? styles.statusDotOnline : styles.statusDotOff]} />
+        <View style={styles.logoWrap}>
+          <Image source={require('../../logo.png')} style={styles.logo} resizeMode="contain" />
+          <View style={[styles.statusDot, isOnline ? styles.statusDotOnline : styles.statusDotOff]} />
+        </View>
       </View>
 
       <FlatList
@@ -192,6 +196,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
+  headerText: {
+    flex: 1,
+    paddingRight: 14,
+  },
+  logoWrap: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 48,
+    justifyContent: 'center',
+    position: 'relative',
+    width: 48,
+  },
+  logo: {
+    height: 36,
+    width: 36,
+  },
   title: {
     color: '#0F172A',
     fontSize: 24,
@@ -206,9 +229,14 @@ const styles = StyleSheet.create({
     color: '#DC2626',
   },
   statusDot: {
-    borderRadius: 8,
-    height: 16,
-    width: 16,
+    borderColor: '#FFFFFF',
+    borderRadius: 6,
+    borderWidth: 2,
+    bottom: -2,
+    height: 12,
+    position: 'absolute',
+    right: -2,
+    width: 12,
   },
   statusDotOnline: {
     backgroundColor: '#16A34A',
