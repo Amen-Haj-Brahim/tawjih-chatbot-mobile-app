@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -15,7 +16,7 @@ import { API_BASE_URL, SourceRow, askQuestion, checkHealth } from '../services/a
 
 type ChatMessage = {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'loading';
   text: string;
   sources?: SourceRow[];
 };
@@ -27,6 +28,8 @@ const STARTER_MESSAGES: ChatMessage[] = [
     text: 'مرحبا! اسألني على التوجيه الجامعي، الشعب، المؤسسات، أو شروط القبول.',
   },
 ];
+
+const TAWJIH_URL = 'https://www.tawjih.tn/';
 
 export function ChatScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>(STARTER_MESSAGES);
@@ -67,20 +70,33 @@ export function ChatScreen() {
     };
 
     setMessages((current) => [...current, userMessage]);
+    const loadingMessageId = `loading-${Date.now()}`;
+
+    setMessages((current) => [
+      ...current,
+      {
+        id: loadingMessageId,
+        role: 'loading',
+        text: 'Thinking...',
+      },
+    ]);
     setQuestion('');
     setIsSending(true);
 
     try {
       const result = await askQuestion(trimmedQuestion);
-      setMessages((current) => [
-        ...current,
-        {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          text: result.answer,
-          sources: result.sources,
-        },
-      ]);
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === loadingMessageId
+            ? {
+                id: `assistant-${Date.now()}`,
+                role: 'assistant',
+                text: result.answer,
+                sources: result.sources,
+              }
+            : message,
+        ),
+      );
       setIsOnline(true);
     } catch (error) {
       const message =
@@ -88,14 +104,17 @@ export function ChatScreen() {
           ? error.message
           : 'Could not reach the chatbot service. Check the backend URL.';
 
-      setMessages((current) => [
-        ...current,
-        {
-          id: `error-${Date.now()}`,
-          role: 'assistant',
-          text: `Sorry, I could not get an answer. ${message}`,
-        },
-      ]);
+      setMessages((current) =>
+        current.map((item) =>
+          item.id === loadingMessageId
+            ? {
+                id: `error-${Date.now()}`,
+                role: 'assistant',
+                text: `Sorry, I could not get an answer. ${message}`,
+              }
+            : item,
+        ),
+      );
       setIsOnline(false);
     } finally {
       setIsSending(false);
@@ -111,10 +130,15 @@ export function ChatScreen() {
             {statusText}
           </Text>
         </View>
-        <View style={styles.logoWrap}>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel="Open Tawjih website"
+          onPress={() => Linking.openURL(TAWJIH_URL)}
+          style={({ pressed }) => [styles.logoWrap, pressed && styles.logoWrapPressed]}
+        >
           <Image source={require('../../logo.png')} style={styles.logo} resizeMode="contain" />
           <View style={[styles.statusDot, isOnline ? styles.statusDotOnline : styles.statusDotOff]} />
-        </View>
+        </Pressable>
       </View>
 
       <FlatList
@@ -161,10 +185,18 @@ export function ChatScreen() {
 
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user';
+  const isLoading = message.role === 'loading';
 
   return (
     <View style={[styles.bubble, isUser ? styles.userBubble : styles.assistantBubble]}>
-      <Text style={[styles.messageText, isUser && styles.userMessageText]}>{message.text}</Text>
+      {isLoading ? (
+        <View style={styles.loadingRow}>
+          <ActivityIndicator color="#2563EB" size="small" />
+          <Text style={styles.loadingText}>Thinking...</Text>
+        </View>
+      ) : (
+        <Text style={[styles.messageText, isUser && styles.userMessageText]}>{message.text}</Text>
+      )}
       {!isUser && message.sources && message.sources.length > 0 ? (
         <View style={styles.sources}>
           <Text style={styles.sourcesTitle}>Sources</Text>
@@ -210,6 +242,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
     width: 48,
+  },
+  logoWrapPressed: {
+    opacity: 0.75,
   },
   logo: {
     height: 36,
@@ -268,6 +303,16 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     fontSize: 16,
     lineHeight: 24,
+  },
+  loadingRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  loadingText: {
+    color: '#475569',
+    fontSize: 15,
+    fontWeight: '600',
   },
   userMessageText: {
     color: '#FFFFFF',
