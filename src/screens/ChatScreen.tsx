@@ -1,0 +1,312 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+
+import { API_BASE_URL, SourceRow, askQuestion, checkHealth } from '../services/api';
+
+type ChatMessage = {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+  sources?: SourceRow[];
+};
+
+const STARTER_MESSAGES: ChatMessage[] = [
+  {
+    id: 'welcome',
+    role: 'assistant',
+    text: 'مرحبا! اسألني على التوجيه الجامعي، الشعب، المؤسسات، أو شروط القبول.',
+  },
+];
+
+export function ChatScreen() {
+  const [messages, setMessages] = useState<ChatMessage[]>(STARTER_MESSAGES);
+  const [question, setQuestion] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [isOnline, setIsOnline] = useState<boolean | null>(null);
+  const listRef = useRef<FlatList<ChatMessage>>(null);
+
+  const canSend = question.trim().length > 0 && !isSending;
+
+  useEffect(() => {
+    checkHealth().then(setIsOnline);
+  }, []);
+
+  useEffect(() => {
+    requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+  }, [messages]);
+
+  const statusText = useMemo(() => {
+    if (isOnline === null) {
+      return 'Checking backend...';
+    }
+
+    return isOnline ? 'Backend connected' : `Backend not reachable at ${API_BASE_URL}`;
+  }, [isOnline]);
+
+  const sendQuestion = async () => {
+    const trimmedQuestion = question.trim();
+
+    if (!trimmedQuestion || isSending) {
+      return;
+    }
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      text: trimmedQuestion,
+    };
+
+    setMessages((current) => [...current, userMessage]);
+    setQuestion('');
+    setIsSending(true);
+
+    try {
+      const result = await askQuestion(trimmedQuestion);
+      setMessages((current) => [
+        ...current,
+        {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          text: result.answer,
+          sources: result.sources,
+        },
+      ]);
+      setIsOnline(true);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Could not reach the chatbot service. Check the backend URL.';
+
+      setMessages((current) => [
+        ...current,
+        {
+          id: `error-${Date.now()}`,
+          role: 'assistant',
+          text: `Sorry, I could not get an answer. ${message}`,
+        },
+      ]);
+      setIsOnline(false);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <View style={styles.screen}>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.title}>Tawjih Chatbot</Text>
+          <Text style={[styles.status, isOnline === false && styles.statusError]}>
+            {statusText}
+          </Text>
+        </View>
+        <View style={[styles.statusDot, isOnline ? styles.statusDotOnline : styles.statusDotOff]} />
+      </View>
+
+      <FlatList
+        ref={listRef}
+        data={messages}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.messages}
+        keyboardShouldPersistTaps="handled"
+        renderItem={({ item }) => <MessageBubble message={item} />}
+      />
+
+      <View style={styles.composer}>
+        <TextInput
+          multiline
+          placeholder="اكتب سؤالك هنا..."
+          placeholderTextColor="#94A3B8"
+          style={styles.input}
+          value={question}
+          onChangeText={setQuestion}
+          editable={!isSending}
+          textAlign="right"
+        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Send question"
+          disabled={!canSend}
+          onPress={sendQuestion}
+          style={({ pressed }) => [
+            styles.sendButton,
+            !canSend && styles.sendButtonDisabled,
+            pressed && canSend && styles.sendButtonPressed,
+          ]}
+        >
+          {isSending ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Ionicons color="#FFFFFF" name="send" size={20} />
+          )}
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function MessageBubble({ message }: { message: ChatMessage }) {
+  const isUser = message.role === 'user';
+
+  return (
+    <View style={[styles.bubble, isUser ? styles.userBubble : styles.assistantBubble]}>
+      <Text style={[styles.messageText, isUser && styles.userMessageText]}>{message.text}</Text>
+      {!isUser && message.sources && message.sources.length > 0 ? (
+        <View style={styles.sources}>
+          <Text style={styles.sourcesTitle}>Sources</Text>
+          {message.sources.slice(0, 3).map((source, index) => (
+            <View key={`${source.source}-${source.row}-${index}`} style={styles.sourceItem}>
+              <Text style={styles.sourceProgram}>{source.program || source.source}</Text>
+              <Text style={styles.sourceMeta}>
+                {[source.university, source.establishment, source.code].filter(Boolean).join(' - ')}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  header: {
+    alignItems: 'center',
+    borderBottomColor: '#E2E8F0',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  title: {
+    color: '#0F172A',
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  status: {
+    color: '#64748B',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  statusError: {
+    color: '#DC2626',
+  },
+  statusDot: {
+    borderRadius: 8,
+    height: 16,
+    width: 16,
+  },
+  statusDotOnline: {
+    backgroundColor: '#16A34A',
+  },
+  statusDotOff: {
+    backgroundColor: '#CBD5E1',
+  },
+  messages: {
+    gap: 12,
+    padding: 16,
+  },
+  bubble: {
+    borderRadius: 8,
+    maxWidth: '88%',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  assistantBubble: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E2E8F0',
+    borderWidth: 1,
+  },
+  userBubble: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#2563EB',
+  },
+  messageText: {
+    color: '#0F172A',
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  userMessageText: {
+    color: '#FFFFFF',
+  },
+  sources: {
+    borderTopColor: '#E2E8F0',
+    borderTopWidth: 1,
+    marginTop: 12,
+    paddingTop: 10,
+  },
+  sourcesTitle: {
+    color: '#475569',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  sourceItem: {
+    backgroundColor: '#F1F5F9',
+    borderRadius: 8,
+    marginTop: 6,
+    padding: 8,
+  },
+  sourceProgram: {
+    color: '#0F172A',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  sourceMeta: {
+    color: '#64748B',
+    fontSize: 12,
+    marginTop: 3,
+  },
+  composer: {
+    alignItems: 'flex-end',
+    backgroundColor: '#FFFFFF',
+    borderTopColor: '#E2E8F0',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    padding: 12,
+  },
+  input: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    borderWidth: 1,
+    color: '#0F172A',
+    flex: 1,
+    fontSize: 16,
+    maxHeight: 120,
+    minHeight: 48,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  sendButton: {
+    alignItems: 'center',
+    backgroundColor: '#2563EB',
+    borderRadius: 8,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#94A3B8',
+  },
+  sendButtonPressed: {
+    opacity: 0.82,
+  },
+});
