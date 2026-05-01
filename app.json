@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Tawjih Chatbot",
+    "slug": "tawjih-chatbot-mobile-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#F8FAFC"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.tawjih.chatbot",
+      "usesCleartextTraffic": true
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ed5f7b5a-09d3-44d5-9b0e-bda0cb49d920"
+      }
+    }
+  }
+}
