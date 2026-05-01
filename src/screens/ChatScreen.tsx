@@ -185,6 +185,8 @@ export function ChatScreen() {
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user';
   const isLoading = message.role === 'loading';
+  const [sourcesExpanded, setSourcesExpanded] = useState(false);
+  const hasSources = !isUser && Boolean(message.sources?.length);
 
   return (
     <View style={[styles.bubble, isUser ? styles.userBubble : styles.assistantBubble]}>
@@ -196,17 +198,34 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       ) : (
         <Text style={[styles.messageText, isUser && styles.userMessageText]}>{message.text}</Text>
       )}
-      {!isUser && message.sources && message.sources.length > 0 ? (
+      {hasSources ? (
         <View style={styles.sources}>
-          <Text style={styles.sourcesTitle}>Sources</Text>
-          {message.sources.slice(0, 3).map((source, index) => (
-            <View key={`${source.source}-${source.row}-${index}`} style={styles.sourceItem}>
-              <Text style={styles.sourceProgram}>{source.program || source.source}</Text>
-              <Text style={styles.sourceMeta}>
-                {[source.university, source.establishment, source.code].filter(Boolean).join(' - ')}
-              </Text>
-            </View>
-          ))}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={sourcesExpanded ? 'Hide sources' : 'Show sources'}
+            onPress={() => setSourcesExpanded((expanded) => !expanded)}
+            style={({ pressed }) => [styles.sourcesToggle, pressed && styles.sourcesTogglePressed]}
+          >
+            <Text style={styles.sourcesTitle}>Sources ({message.sources?.length})</Text>
+            <Ionicons
+              color="#475569"
+              name={sourcesExpanded ? 'chevron-up' : 'chevron-down'}
+              size={18}
+            />
+          </Pressable>
+
+          {sourcesExpanded
+            ? message.sources?.slice(0, 3).map((source, index) => (
+                <View key={`${source.source}-${source.row}-${index}`} style={styles.sourceItem}>
+                  <Text style={styles.sourceProgram}>{source.program || source.source}</Text>
+                  <Text style={styles.sourceMeta}>
+                    {[source.university, source.establishment, source.code]
+                      .filter(Boolean)
+                      .join(' - ')}
+                  </Text>
+                </View>
+              ))
+            : null}
         </View>
       ) : null}
     </View>
@@ -320,13 +339,21 @@ const styles = StyleSheet.create({
     borderTopColor: '#E2E8F0',
     borderTopWidth: 1,
     marginTop: 12,
-    paddingTop: 10,
+    paddingTop: 8,
+  },
+  sourcesToggle: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 32,
+  },
+  sourcesTogglePressed: {
+    opacity: 0.72,
   },
   sourcesTitle: {
     color: '#475569',
     fontSize: 12,
     fontWeight: '700',
-    marginBottom: 8,
     textTransform: 'uppercase',
   },
   sourceItem: {
